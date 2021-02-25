@@ -59,14 +59,14 @@ public struct BindableOffsetScrollView<Content>: View where Content: View {
 }
 
 
-internal class ScrollViewOffsetTracker {
+public class ScrollViewOffsetTracker {
     
     private static var trackers: [String: ScrollViewOffsetTracker] = [:]
     
     var contentOffset: Binding<CGFloat>
     
     
-    static func tracker(forId id: String) -> ScrollViewOffsetTracker {
+    public static func tracker(forId id: String) -> ScrollViewOffsetTracker {
         
         if let tracker = trackers[id] {
             return tracker
@@ -78,7 +78,7 @@ internal class ScrollViewOffsetTracker {
         return tracker
     }
     
-    static func removeTracker(forId id: String) {
+    public static func removeTracker(forId id: String) {
         trackers.removeValue(forKey: id)
     }
     
