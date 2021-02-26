@@ -11,12 +11,14 @@ public struct BindableOffsetScrollView<Content>: View where Content: View {
     
     private let axes: Axis.Set
     private let showIndicators: Bool
-    private let content: () -> Content
+    private let content: (ScrollViewInfo) -> Content
     
     private let tracker: ScrollViewOffsetTracker
     
+    @State private var scrollViewInfo = ScrollViewInfo(offset: 0, size: .zero)
     
-    public init(forId id: String, axes: Axis.Set = .vertical, showIndicators: Bool = true, contentOffset: Binding<CGFloat>, @ViewBuilder content: @escaping () -> Content) {
+    
+    public init(forId id: String, axes: Axis.Set = .vertical, showIndicators: Bool = true, @ViewBuilder content: @escaping (ScrollViewInfo) -> Content) {
         
         self.axes = axes
         self.showIndicators = showIndicators
@@ -24,7 +26,18 @@ public struct BindableOffsetScrollView<Content>: View where Content: View {
         
         tracker = ScrollViewOffsetTracker.tracker(forId: id)
         
-        tracker.contentOffset = contentOffset
+        tracker.contentInfo = $scrollViewInfo
+    }
+    
+    public init(forId id: String, axes: Axis.Set = .vertical, showIndicators: Bool = true, contentInfo: Binding<ScrollViewInfo>, @ViewBuilder content: @escaping (ScrollViewInfo) -> Content) {
+        
+        self.axes = axes
+        self.showIndicators = showIndicators
+        self.content = content
+        
+        tracker = ScrollViewOffsetTracker.tracker(forId: id)
+        
+        tracker.contentInfo = contentInfo
     }
     
     public var body: some View {
@@ -40,7 +53,7 @@ public struct BindableOffsetScrollView<Content>: View where Content: View {
                         calculateOffset(fromOutside: outsideGeometry, toInside: insideGeometry)
                     }
                     
-                    content()
+                    content(tracker.contentInfo.wrappedValue)
                 }
             }
         }
@@ -48,10 +61,15 @@ public struct BindableOffsetScrollView<Content>: View where Content: View {
     
     private func calculateOffset(fromOutside outsideGeometry: GeometryProxy, toInside insideGeometry: GeometryProxy) -> EmptyView {
         
+        let outerFrame = outsideGeometry.frame(in: .global)
+        let innerFrame = insideGeometry.frame(in: .global)
+        
+        tracker.size = outerFrame.size
+        
         if axes == .vertical {
-            tracker.offset = outsideGeometry.frame(in: .global).minY - insideGeometry.frame(in: .global).minY
+            tracker.offset = outerFrame.minY - innerFrame.minY
         } else {
-            tracker.offset = outsideGeometry.frame(in: .global).minX - insideGeometry.frame(in: .global).minX
+            tracker.offset = outerFrame.minX - innerFrame.minX
         }
         
         return EmptyView()
@@ -63,7 +81,8 @@ public class ScrollViewOffsetTracker {
     
     private static var trackers: [String: ScrollViewOffsetTracker] = [:]
     
-    var contentOffset: Binding<CGFloat>
+    var contentInfo: Binding<ScrollViewInfo>
+    var size: CGSize = .zero
     
     
     public static func tracker(forId id: String) -> ScrollViewOffsetTracker {
@@ -83,7 +102,7 @@ public class ScrollViewOffsetTracker {
     }
     
     private init() {
-        contentOffset = Binding<CGFloat>(get: { 0 }, set: { _ in })
+        contentInfo = Binding<ScrollViewInfo>(get: { ScrollViewInfo(offset: 0, size: .zero) }, set: { _ in })
     }
     
     var offset: CGFloat = 0 {
@@ -92,8 +111,19 @@ public class ScrollViewOffsetTracker {
                 return
             }
             DispatchQueue.main.async {
-                self.contentOffset.wrappedValue = self.offset
+                self.contentInfo.wrappedValue = ScrollViewInfo(offset: self.offset, size: self.size)
             }
         }
+    }
+}
+
+
+public struct ScrollViewInfo {
+    public let offset: CGFloat
+    public let size: CGSize
+    
+    public init(offset: CGFloat, size: CGSize) {
+        self.offset = offset
+        self.size = size
     }
 }
