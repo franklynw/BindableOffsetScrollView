@@ -24,8 +24,7 @@ public struct BindableOffsetScrollView<Content>: View where Content: View {
         self.showIndicators = showIndicators
         self.content = content
         
-        tracker = ScrollViewOffsetTracker.tracker(forId: id)
-        
+        tracker = ScrollViewOffsetTracker.tracker(forId: id, contentInfo: nil)
         tracker.contentInfo = $scrollViewInfo
     }
     
@@ -35,9 +34,7 @@ public struct BindableOffsetScrollView<Content>: View where Content: View {
         self.showIndicators = showIndicators
         self.content = content
         
-        tracker = ScrollViewOffsetTracker.tracker(forId: id)
-        
-        tracker.contentInfo = contentInfo
+        tracker = ScrollViewOffsetTracker.tracker(forId: id, contentInfo: contentInfo)
     }
     
     public var body: some View {
@@ -53,7 +50,9 @@ public struct BindableOffsetScrollView<Content>: View where Content: View {
                         calculateOffset(fromOutside: outsideGeometry, toInside: insideGeometry)
                     }
                     
-                    content(tracker.contentInfo.wrappedValue)
+                    if let wrappedValue = tracker.contentInfo?.wrappedValue {
+                        content(wrappedValue)
+                    }
                 }
             }
         }
@@ -81,17 +80,17 @@ public class ScrollViewOffsetTracker {
     
     private static var trackers: [String: ScrollViewOffsetTracker] = [:]
     
-    var contentInfo: Binding<ScrollViewInfo>
+    var contentInfo: Binding<ScrollViewInfo>?
     var size: CGSize = .zero
     
     
-    public static func tracker(forId id: String) -> ScrollViewOffsetTracker {
+    public static func tracker(forId id: String, contentInfo: Binding<ScrollViewInfo>?) -> ScrollViewOffsetTracker {
         
         if let tracker = trackers[id] {
             return tracker
         }
         
-        let tracker = ScrollViewOffsetTracker()
+        let tracker = ScrollViewOffsetTracker(contentInfo)
         trackers[id] = tracker
         
         return tracker
@@ -101,8 +100,8 @@ public class ScrollViewOffsetTracker {
         trackers.removeValue(forKey: id)
     }
     
-    private init() {
-        contentInfo = Binding<ScrollViewInfo>(get: { ScrollViewInfo(offset: 0, size: .zero) }, set: { _ in })
+    private init(_ contentInfo: Binding<ScrollViewInfo>?) {
+        self.contentInfo = contentInfo
     }
     
     var offset: CGFloat = 0 {
@@ -111,7 +110,7 @@ public class ScrollViewOffsetTracker {
                 return
             }
             DispatchQueue.main.async {
-                self.contentInfo.wrappedValue = ScrollViewInfo(offset: self.offset, size: self.size)
+                self.contentInfo?.wrappedValue = ScrollViewInfo(offset: self.offset, size: self.size)
             }
         }
     }
